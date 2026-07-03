@@ -5,7 +5,7 @@ const path = require("path");
 // ─── Config ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 8080;
 const SELF_PING_INTERVAL = 14 * 60 * 1000;
-const CLI_PATH = path.join(__dirname, "node_modules", ".bin", "youtube-po-token-generator");
+const CLI_PATH = path.join(__dirname, "node_modules", "youtube-po-token-generator", "bin", "cli.mjs");
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let cachedToken = null;
@@ -20,7 +20,8 @@ function fetchYouTubeToken() {
       env: { ...process.env },
     }, (error, stdout, stderr) => {
       if (error) {
-        reject(new Error(error.killed ? "Token generation timed out" : error.message));
+        const detail = stderr ? stderr.trim() : error.message;
+        reject(new Error(error.killed ? "Token generation timed out" : detail));
         return;
       }
 
@@ -32,7 +33,7 @@ function fetchYouTubeToken() {
         }
         resolve(result);
       } catch (err) {
-        reject(new Error(`Failed to parse token output: ${err.message}`));
+        reject(new Error(`Failed to parse token output: ${stdout.trim() || stderr.trim()}`));
       }
     });
   });
