@@ -1,6 +1,6 @@
 <div align="center">
   <h1>🎥 YouPOT Server</h1>
-  <p><strong>Automatically generate fresh `poToken` and `visitorData` values for Lavalink.</strong></p>
+  <p><strong>Automatically generate fresh `poToken` and `visitorData` values for <a href="https://github.com/lavalink-devs/Lavalink">Lavalink</a> and the <a href="https://github.com/lavalink-devs/youtube-source">youtube-source</a> plugin.</strong></p>
   <p>Bypass YouTube's "Sign in to confirm you're not a bot" errors instantly.</p>
 </div>
 
@@ -47,7 +47,7 @@ docker compose up -d
 
 ## 🎧 Lavalink Configuration
 
-Once you generate your tokens from this server, add them to your Lavalink `application.yml`:
+Once you generate your tokens from this server, add them to your [Lavalink](https://github.com/lavalink-devs/Lavalink) `application.yml` under the [youtube-source](https://github.com/lavalink-devs/youtube-source) plugin configuration:
 
 ```yaml
 plugins:
@@ -55,6 +55,7 @@ plugins:
     enabled: true
     # ... your other settings ...
     
+    # Put your tokens here!
     pot:
       token: "YOUR_GENERATED_poToken_HERE"
       visitorData: "YOUR_GENERATED_visitorData_HERE"
