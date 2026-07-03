@@ -15,7 +15,7 @@ RUN apt-get update \
 
 COPY package.json ./
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-RUN npm install
+RUN npm install --ignore-scripts
 
 COPY server.js ./
 
