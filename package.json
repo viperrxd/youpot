@@ -4,11 +4,14 @@
   "description": "YouTube PO Token and VisitorData generator server for Lavalink/LavaSrc",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --max-old-space-size=512 server.js"
   },
   "dependencies": {
-    "express": "latest",
-    "youtube-po-token-generator": "latest"
+    "express": "^4.21.0",
+    "youtube-po-token-generator": "^0.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "author": "viperrxd",
   "license": "ISC"

@@ -1,11 +1,13 @@
-FROM node:20
+FROM node:20-slim
 
 WORKDIR /app
 
 COPY package.json ./
-RUN npm install --ignore-scripts
 
-COPY server.js ./
+RUN npm install --production
+
+COPY . .
 
 EXPOSE 8080
-CMD ["node", "server.js"]
+
+CMD ["node", "--max-old-space-size=512", "server.js"]
