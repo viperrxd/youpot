@@ -4,7 +4,7 @@
   "description": "YouTube PO Token and VisitorData generator server for Lavalink/LavaSrc",
   "main": "server.js",
   "scripts": {
-    "start": "node --max-old-space-size=512 server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.21.0",

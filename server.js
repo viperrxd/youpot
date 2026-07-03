@@ -1,49 +1,52 @@
 const express = require("express");
-const { generate } = require("youtube-po-token-generator");
+const { execFile } = require("child_process");
+const path = require("path");
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 8080;
-const SELF_PING_INTERVAL = 14 * 60 * 1000; // 14 minutes — keeps free tier alive
+const SELF_PING_INTERVAL = 14 * 60 * 1000;
+const CLI_PATH = path.join(__dirname, "node_modules", ".bin", "youtube-po-token-generator");
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let cachedToken = null;
 let cachedTokenExpiry = 0;
 let isRefreshing = false;
 
-// ─── Token Fetching ─────────────────────────────────────────────────────────
-async function fetchYouTubeToken() {
+// ─── Token Fetching (via child process to avoid OOM) ────────────────────────
+function fetchYouTubeToken() {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error("Token fetch timed out after 30 seconds"));
-    }, 30000);
+    execFile("node", ["--max-old-space-size=1024", CLI_PATH], {
+      timeout: 60000,
+      env: { ...process.env },
+    }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(error.killed ? "Token generation timed out" : error.message));
+        return;
+      }
 
-    generate()
-      .then((result) => {
-        clearTimeout(timeout);
-
+      try {
+        const result = JSON.parse(stdout.trim());
         if (!result.poToken || !result.visitorData) {
           reject(new Error("Invalid token response from YouTube"));
           return;
         }
-
         resolve(result);
-      })
-      .catch((err) => {
-        clearTimeout(timeout);
-        reject(new Error(`Failed to generate token: ${err.message}`));
-      });
+      } catch (err) {
+        reject(new Error(`Failed to parse token output: ${err.message}`));
+      }
+    });
   });
 }
 
 async function getToken() {
-  // Return cached token if still valid (cache for 6 hours)
+  // Return cached token if still valid
   if (cachedToken && Date.now() < cachedTokenExpiry) {
     return cachedToken;
   }
 
   // Prevent concurrent refreshes
   if (isRefreshing) {
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 3000));
     if (cachedToken && Date.now() < cachedTokenExpiry) {
       return cachedToken;
     }
@@ -66,7 +69,7 @@ async function getToken() {
 // ─── Express Server ─────────────────────────────────────────────────────────
 const app = express();
 
-// CORS — allow access from anywhere
+// CORS
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -75,13 +78,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// GET /api/token — the main endpoint
+// GET /api/token
 app.get("/api/token", async (req, res) => {
   try {
     const token = await getToken();
     res.json(token);
   } catch (err) {
-    // Invalidate cache on error so next request retries
     cachedToken = null;
     cachedTokenExpiry = 0;
 
@@ -92,7 +94,7 @@ app.get("/api/token", async (req, res) => {
   }
 });
 
-// GET /health — health check
+// GET /health
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
@@ -104,7 +106,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// GET / — info page
+// GET /
 app.get("/", (req, res) => {
   res.json({
     service: "youpot",
@@ -116,7 +118,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// ─── Self-Ping (keeps free tier alive) ───────────────────────────────────────
+// ─── Self-Ping ──────────────────────────────────────────────────────────────
 function startSelfPing() {
   const externalUrl = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RENDER_EXTERNAL_URL;
   if (!externalUrl) return;
@@ -149,11 +151,9 @@ async function start() {
   });
 }
 
-// ─── Graceful Shutdown ──────────────────────────────────────────────────────
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
 
-// Start the server
 start().catch((err) => {
   console.error("[fatal]", err);
   process.exit(1);

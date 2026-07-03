@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["node", "--max-old-space-size=512", "server.js"]
+CMD ["node", "server.js"]
