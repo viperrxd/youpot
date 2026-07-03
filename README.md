@@ -26,7 +26,7 @@ Create a `compose.yml` file on your server:
 ```yaml
 services:
   youpot:
-    image: ghcr.io/viperrxd/youpot:main
+    image: ghcr.io/viperrxd/youpot:latest
     container_name: youpot
     restart: unless-stopped
     ports:
