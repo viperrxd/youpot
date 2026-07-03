@@ -4,9 +4,19 @@ const { generate } = require('youtube-po-token-generator');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+const withTimeout = (promise, ms) => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`YouTube took too long to respond. The server IP might be temporarily blocked or rate-limited.`));
+        }, ms);
+    });
+    return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+};
+
 app.get('/', async (req, res) => {
     try {
-        const tokens = await generate();
+        const tokens = await withTimeout(generate(), 20000); // 20 second timeout
         res.send(`
             <html>
                 <head>
@@ -33,18 +43,24 @@ app.get('/', async (req, res) => {
             </html>
         `);
     } catch (error) {
-        console.error("Error generating tokens:", error);
-        res.status(500).send("Error generating tokens. See console.");
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to generate tokens", 
+            details: error.message 
+        });
     }
 });
 
 app.get('/api/token', async (req, res) => {
     try {
-        const tokens = await generate();
+        const tokens = await withTimeout(generate(), 20000);
         res.json(tokens);
     } catch (error) {
-        console.error("Error generating tokens:", error);
-        res.status(500).json({ error: "Failed to generate tokens" });
+        res.status(500).json({ 
+            success: false, 
+            error: "Failed to generate tokens",
+            details: error.message
+        });
     }
 });
 

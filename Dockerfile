@@ -23,7 +23,7 @@ COPY server.js ./
 ENV CHROME_CRASHPAD_PIPE_NAME=""
 ENV CHROME_DEVEL_SANDBOX=""
 
-# Optional: Disable sandbox if facing issues (Railway handles this automatically, but good for Pterodactyl)
+# Optional: Disable sandbox if facing crashpad errors
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 EXPOSE 8080
