@@ -14,6 +14,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm install
 
 COPY server.js ./
@@ -23,7 +24,6 @@ ENV CHROME_CRASHPAD_PIPE_NAME=""
 ENV CHROME_DEVEL_SANDBOX=""
 
 # Optional: Disable sandbox if facing issues (Railway handles this automatically, but good for Pterodactyl)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 EXPOSE 8080
