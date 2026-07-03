@@ -1,5 +1,5 @@
 # Use Node.js 18 or higher as required by youtube-po-token-generator
-FROM node:20-slim
+FROM node:20
 
 WORKDIR /app
 
