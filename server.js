@@ -136,9 +136,9 @@ async function fetchYouTubeToken() {
         req.continue();
       });
 
-      // Navigate to YouTube Embed (Lighter page, skips many checks, still triggers BotGuard)
-      console.log("[token] Navigating to YouTube Embed page...");
-      page.goto("https://www.youtube.com/embed/jNQXAC9IVRw", {
+      // Navigate to standard YouTube watch page (triggers BotGuard and player API)
+      console.log("[token] Navigating to YouTube watch page...");
+      page.goto("https://www.youtube.com/watch?v=4NRXx6U8ABQ", {
         waitUntil: "domcontentloaded",
         timeout: 40000,
       }).then(async () => {
