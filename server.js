@@ -140,8 +140,9 @@ async function fetchTokens() {
   }
 }
 
-// Serve the beautiful UI dashboard
-app.use(express.static("public"));
+app.get("/", (req, res) => {
+  res.send("YouPOT Server is running!");
+});
 
 app.get("/api/token", async (req, res) => {
   console.log(`[server] Received token request from ${req.ip}`);
@@ -150,47 +151,6 @@ app.get("/api/token", async (req, res) => {
     res.json(tokens);
   } catch (error) {
     res.status(500).json({ error: "Failed to generate tokens", message: error.message });
-  }
-});
-
-// Endpoint to validate if the current tokens are actually working on YouTube
-app.get("/api/validate", async (req, res) => {
-  console.log(`[server] Validating tokens against YouTube API...`);
-  try {
-    const tokens = await fetchTokens();
-    const ytPayload = {
-      context: {
-        client: {
-          hl: "en", gl: "US",
-          clientName: "WEB",
-          clientVersion: "2.20240101.00.00",
-          visitorData: tokens.visitorData
-        }
-      },
-      videoId: "4NRXx6U8ABQ", // Blinding Lights
-      playbackContext: { contentPlaybackContext: { signatureTimestamp: 19800 } },
-      serviceIntegrityDimensions: { poToken: tokens.poToken }
-    };
-
-    const ytResponse = await fetch("https://www.youtube.com/youtubei/v1/player", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-      },
-      body: JSON.stringify(ytPayload)
-    });
-
-    const ytData = await ytResponse.json();
-    const playability = ytData.playabilityStatus?.status;
-
-    if (playability === "OK" && ytData.streamingData) {
-      res.json({ valid: true, formats: ytData.streamingData.adaptiveFormats?.length || 0 });
-    } else {
-      res.json({ valid: false, reason: ytData.playabilityStatus?.reason || "Blocked" });
-    }
-  } catch (error) {
-    res.status(500).json({ valid: false, reason: error.message });
   }
 });
 
