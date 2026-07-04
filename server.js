@@ -129,10 +129,10 @@ async function fetchYouTubeToken() {
         req.continue();
       });
 
-      console.log("[token] Navigating to YouTube watch page...");
+      console.log("[token] Navigating to YouTube Music to bypass datacenter IP block...");
       
-      // Navigate to the YouTube page
-      page.goto("https://www.youtube.com/watch?v=4NRXx6U8ABQ", {
+      // Navigate to YouTube Music (has looser IP rate limits than main YouTube)
+      page.goto("https://music.youtube.com/watch?v=4NRXx6U8ABQ", {
         waitUntil: "domcontentloaded",
         timeout: 40000,
       }).then(async (response) => {
