@@ -122,7 +122,7 @@ async function fetchYouTubeToken() {
 
       // Navigate to a video page — this triggers YouTube's BotGuard + player API
       page.goto("https://www.youtube.com/watch?v=jNQXAC9IVRw", {
-        waitUntil: "networkidle2",
+        waitUntil: "domcontentloaded",
         timeout: 40000,
       }).then(async () => {
         // Fallback: if interception didn't catch it, try extracting from page context
@@ -134,19 +134,22 @@ async function fetchYouTubeToken() {
             // Look for poToken in various places YouTube might store it
             const ytInitData = window.ytInitialPlayerResponse;
             const poToken = ytInitData?.serviceIntegrityDimensions?.poToken;
-            return { visitorData, poToken };
+            const title = document.title;
+            return { visitorData, poToken, title };
           });
 
           if (pageData.poToken && pageData.visitorData) {
             clearTimeout(timeout);
             console.log("[token] Got tokens from page context (fallback)");
             resolve(pageData);
+          } else {
+            console.log(`[token] Failed to find tokens in page. Page title was: "${pageData.title}"`);
           }
-        } catch (_) {
-          /* page might have navigated away */
+        } catch (err) {
+          console.log(`[token] Evaluate error: ${err.message}`);
         }
-      }).catch(() => {
-        /* navigation error handled by timeout */
+      }).catch((err) => {
+        console.log(`[token] Navigation error: ${err.message}`);
       });
     });
   } finally {
