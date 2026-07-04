@@ -57,12 +57,6 @@ async function fetchTokens() {
         const url = req.url();
         const resourceType = req.resourceType();
 
-        // Block heavy assets to save memory/bandwidth
-        if (["image", "font", "media"].includes(resourceType)) {
-          req.abort();
-          return;
-        }
-
         // --- THE MAGIC INTERCEPTOR ---
         
         // 1. Check URL parameters (e.g. timedtext, videoplayback)
