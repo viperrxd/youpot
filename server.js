@@ -85,8 +85,29 @@ async function fetchYouTubeToken() {
         reject(new Error("Token fetch timed out after 45 seconds (YouTube might be strictly blocking this IP)"));
       }, 45000);
 
+      let interceptedVisitorData = null;
+
       page.on("request", (req) => {
         const url = req.url();
+        
+        // 1. Check for 'pot' in URL query parameters (like timedtext or videoplayback)
+        try {
+          const urlObj = new URL(url);
+          const potParam = urlObj.searchParams.get("pot");
+          if (potParam) {
+            console.log("[token] Success! Found 'pot' parameter in URL:", url.split("?")[0]);
+            
+            // We need visitorData too, let's grab it from the page context
+            page.evaluate(() => window.ytcfg?.data_?.VISITOR_DATA).then((vData) => {
+              if (vData) {
+                clearTimeout(timeout);
+                resolve({ poToken: potParam, visitorData: vData });
+              }
+            }).catch(() => {});
+          }
+        } catch (_) {}
+
+        // 2. Check for poToken in POST payloads (youtubei/v1/)
         if (url.includes("/youtubei/v1/") && req.method() === "POST") {
           try {
             const postData = req.postData();
@@ -95,9 +116,11 @@ async function fetchYouTubeToken() {
               const poToken = body?.serviceIntegrityDimensions?.poToken;
               const visitorData = body?.context?.client?.visitorData;
 
+              if (visitorData) interceptedVisitorData = visitorData;
+
               if (poToken && visitorData) {
                 clearTimeout(timeout);
-                console.log("[token] Success! Extracted poToken from YouTube API request.");
+                console.log("[token] Success! Extracted poToken from YouTube API POST request.");
                 resolve({ poToken, visitorData });
               }
             }
