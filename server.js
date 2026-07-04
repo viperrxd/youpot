@@ -136,10 +136,22 @@ async function fetchYouTubeToken() {
         waitUntil: "domcontentloaded",
         timeout: 40000,
       }).then(async (response) => {
-        console.log(`[token] Page response status: ${response ? response.status() : 'Unknown'}`);
-        
-        // Give BotGuard time to execute
-        await new Promise((r) => setTimeout(r, 5000));
+        if (response) {
+          console.log("[token] Page response status:", response.status());
+        }
+
+        // The embed page loaded! Now we MUST click the play button to force the video to start
+        // This triggers the BotGuard math and the hidden network requests containing the tokens.
+        try {
+          await page.waitForSelector(".ytp-large-play-button", { timeout: 10000 });
+          console.log("[token] Found play button! Clicking it to trigger token generation...");
+          await page.click(".ytp-large-play-button");
+        } catch (err) {
+          console.log("[token] Play button not found. Video might already be playing or blocked.");
+        }
+
+        const title = await page.title();
+        console.log(`[token] Waiting for tokens. Title: "${title}"`);
 
         try {
           const pageData = await page.evaluate(() => {
