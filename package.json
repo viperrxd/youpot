@@ -1,7 +1,7 @@
 {
-  "name": "youpot",
+  "name": "youpot-server",
   "version": "1.0.0",
-  "description": "YouTube PO Token and VisitorData generator server for Lavalink/LavaSrc",
+  "description": "Standalone server to generate poToken and visitorData for Lavalink",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -14,7 +14,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "author": "viperrxd",
-  "license": "ISC"
+  }
 }
