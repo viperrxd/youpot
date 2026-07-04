@@ -129,10 +129,10 @@ async function fetchYouTubeToken() {
         req.continue();
       });
 
-      console.log("[token] Navigating to YouTube Music to bypass datacenter IP block...");
+      console.log("[token] Navigating to YouTube Embed page to bypass 429 block...");
       
-      // Navigate to YouTube Music (has looser IP rate limits than main YouTube)
-      page.goto("https://music.youtube.com/watch?v=4NRXx6U8ABQ", {
+      // Navigate to a YouTube Embed page. Embeds often bypass the 429 CAPTCHA block!
+      page.goto("https://www.youtube.com/embed/4NRXx6U8ABQ?autoplay=1", {
         waitUntil: "domcontentloaded",
         timeout: 40000,
       }).then(async (response) => {
