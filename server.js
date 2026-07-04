@@ -1,5 +1,9 @@
 const express = require("express");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+
+// Enable stealth plugin
+puppeteer.use(StealthPlugin());
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 8080;
@@ -14,14 +18,10 @@ let isRefreshing = false;
 // ─── Browser Management ─────────────────────────────────────────────────────
 async function launchBrowser() {
   if (browser) {
-    try {
-      await browser.close();
-    } catch (_) {
-      /* ignore */
-    }
+    try { await browser.close(); } catch (_) { }
   }
 
-  console.log("[browser] Launching headless Chrome (Stealth Mode)...");
+  console.log("[browser] Launching headless Chrome with full Stealth mode...");
   const launchOptions = {
     headless: "new",
     args: [
@@ -39,15 +39,11 @@ async function launchBrowser() {
       "--disable-breakpad",
       "--disable-component-update",
       "--disable-features=VizDisplayCompositor,CrashReporting",
-      "--disable-blink-features=AutomationControlled", // Hides Puppeteer
+      "--disable-blink-features=AutomationControlled",
     ],
-    env: {
-      ...process.env,
-      CHROME_CRASHPAD_PIPE_NAME: "",
-    },
+    env: { ...process.env, CHROME_CRASHPAD_PIPE_NAME: "" },
   };
 
-  // Use system Chromium when set (Docker)
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
     launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
   }
@@ -75,31 +71,7 @@ async function fetchYouTubeToken() {
   const page = await b.newPage();
 
   try {
-    // 1. Stealth: Override webdriver property before the page loads
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', {
-        get: () => undefined,
-      });
-      // Mock plugins
-      Object.defineProperty(navigator, 'plugins', {
-        get: () => [1, 2, 3],
-      });
-      // Mock languages
-      Object.defineProperty(navigator, 'languages', {
-        get: () => ['en-US', 'en'],
-      });
-    });
-
-    // 2. Realistic Headers
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-    );
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "en-US,en;q=0.9",
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    });
-
-    // 3. Bypass EU consent screen
+    // 1. Bypass EU consent screen explicitly
     await page.setCookie({
       name: "CONSENT",
       value: "YES+cb.20210328-17-p0.en+FX+971",
@@ -110,13 +82,11 @@ async function fetchYouTubeToken() {
 
     return await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Token fetch timed out after 45 seconds (BotGuard might be blocking the IP)"));
+        reject(new Error("Token fetch timed out after 45 seconds (YouTube might be strictly blocking this IP)"));
       }, 45000);
 
       page.on("request", (req) => {
         const url = req.url();
-
-        // We listen for API calls containing poToken
         if (url.includes("/youtubei/v1/") && req.method() === "POST") {
           try {
             const postData = req.postData();
@@ -131,28 +101,31 @@ async function fetchYouTubeToken() {
                 resolve({ poToken, visitorData });
               }
             }
-          } catch (_) { /* ignore non-JSON */ }
+          } catch (_) {}
         }
         req.continue();
       });
 
-      // Navigate to standard YouTube watch page (triggers BotGuard and player API)
       console.log("[token] Navigating to YouTube watch page...");
+      
+      // Navigate to the YouTube page
       page.goto("https://www.youtube.com/watch?v=4NRXx6U8ABQ", {
         waitUntil: "domcontentloaded",
         timeout: 40000,
-      }).then(async () => {
-        // Wait 5 seconds to give BotGuard time to execute and fire the API request
+      }).then(async (response) => {
+        console.log(`[token] Page response status: ${response ? response.status() : 'Unknown'}`);
+        
+        // Give BotGuard time to execute
         await new Promise((r) => setTimeout(r, 5000));
 
-        // Fallback: Check if it's stored in window objects
         try {
           const pageData = await page.evaluate(() => {
             const visitorData = window.ytcfg?.data_?.VISITOR_DATA;
             const ytInitData = window.ytInitialPlayerResponse;
             const poToken = ytInitData?.serviceIntegrityDimensions?.poToken;
             const title = document.title;
-            return { visitorData, poToken, title };
+            const htmlSample = document.body.innerHTML.substring(0, 150); // grab a snippet for debugging
+            return { visitorData, poToken, title, htmlSample };
           });
 
           if (pageData.poToken && pageData.visitorData) {
@@ -160,47 +133,37 @@ async function fetchYouTubeToken() {
             console.log("[token] Success! Extracted tokens directly from page context.");
             resolve(pageData);
           } else {
-            console.log(`[token] Still waiting... Page loaded but no tokens yet. Title: "${pageData.title}"`);
-            
-            // If the title contains "consent" or "captcha", YouTube is blocking the view
-            if (pageData.title.toLowerCase().includes("before you continue") || pageData.title.toLowerCase().includes("captcha")) {
-               console.warn("[token] WARNING: YouTube served a Captcha or Consent page. This IP might be heavily blocked.");
+            console.log(`[token] No tokens found yet. Title: "${pageData.title}"`);
+            if (!pageData.title || pageData.title.startsWith("http")) {
+              console.log("[token] Debug HTML Snippet: ", pageData.htmlSample.replace(/\n/g, ' '));
+              console.log("[token] Warning: YouTube is not rendering the HTML document properly.");
             }
           }
         } catch (err) {
-          console.log(`[token] Evaluate fallback error: ${err.message}`);
+          console.log(`[token] Evaluate error: ${err.message}`);
         }
       }).catch((err) => {
         console.log(`[token] Navigation error: ${err.message}`);
       });
     });
   } finally {
-    try {
-      await page.close();
-    } catch (_) { /* ignore */ }
+    try { await page.close(); } catch (_) {}
   }
 }
 
 async function getToken() {
-  if (cachedToken && Date.now() < cachedTokenExpiry) {
-    return cachedToken;
-  }
-
+  if (cachedToken && Date.now() < cachedTokenExpiry) return cachedToken;
   if (isRefreshing) {
     await new Promise((r) => setTimeout(r, 2000));
-    if (cachedToken && Date.now() < cachedTokenExpiry) {
-      return cachedToken;
-    }
+    if (cachedToken && Date.now() < cachedTokenExpiry) return cachedToken;
   }
 
   isRefreshing = true;
   try {
     console.log("[token] Fetching fresh token from YouTube...");
     const token = await fetchYouTubeToken();
-
     cachedToken = token;
     cachedTokenExpiry = Date.now() + 6 * 60 * 60 * 1000;
-
     return token;
   } finally {
     isRefreshing = false;
@@ -226,10 +189,7 @@ app.get("/api/token", async (req, res) => {
     console.error("[error] Failed to get token:", err.message);
     cachedToken = null;
     cachedTokenExpiry = 0;
-    res.status(500).json({
-      error: "Failed to fetch YouTube token",
-      message: err.message,
-    });
+    res.status(500).json({ error: "Failed to fetch YouTube token", message: err.message });
   }
 });
 
@@ -239,40 +199,28 @@ app.get("/health", (req, res) => {
     uptime: Math.round(process.uptime()),
     browserConnected: browser?.connected ?? false,
     tokenCached: cachedToken !== null,
-    tokenExpiresIn: cachedToken
-      ? Math.round((cachedTokenExpiry - Date.now()) / 1000)
-      : null,
+    tokenExpiresIn: cachedToken ? Math.round((cachedTokenExpiry - Date.now()) / 1000) : null,
   });
 });
 
 app.get("/", (req, res) => {
-  res.json({
-    service: "youpot",
-    version: "1.0.0",
-    endpoints: {
-      token: "/api/token",
-      health: "/health",
-    },
-  });
+  res.json({ service: "youpot", version: "1.0.0", endpoints: { token: "/api/token", health: "/health" }});
 });
 
 // ─── Self-Ping ──────────────────────────────────────────────────────────────
 function startSelfPing() {
   const externalUrl = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.RENDER_EXTERNAL_URL;
   if (!externalUrl) return;
-
   const protocol = externalUrl.startsWith("http") ? "" : "https://";
   const url = `${protocol}${externalUrl}/health`;
-
   setInterval(async () => {
-    try { await fetch(url); } catch (_) { /* ignore */ }
+    try { await fetch(url); } catch (_) {}
   }, SELF_PING_INTERVAL);
 }
 
 // ─── Startup ────────────────────────────────────────────────────────────────
 async function start() {
   await launchBrowser();
-
   app.listen(PORT, () => {
     console.log(`[server] Listening on port ${PORT}`);
     console.log(`[server] Token endpoint: http://localhost:${PORT}/api/token`);
@@ -283,7 +231,7 @@ async function start() {
 async function shutdown(signal) {
   console.log(`\n[shutdown] Received ${signal}, closing...`);
   if (browser) {
-    try { await browser.close(); } catch (_) { }
+    try { await browser.close(); } catch (_) {}
   }
   process.exit(0);
 }
