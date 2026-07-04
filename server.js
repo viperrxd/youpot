@@ -275,17 +275,6 @@ async function start() {
   // Pre-launch browser
   await launchBrowser();
 
-  // Pre-fetch first token so it's cached immediately
-  try {
-    await getToken();
-    console.log("[startup] Initial token cached successfully");
-  } catch (err) {
-    console.warn(
-      "[startup] Initial token fetch failed (will retry on first request):",
-      err.message
-    );
-  }
-
   app.listen(PORT, () => {
     console.log(`[server] Listening on port ${PORT}`);
     console.log(
