@@ -84,9 +84,14 @@ async function fetchTokens() {
               const visitorData = body?.context?.client?.visitorData;
 
               if (poToken && visitorData) {
-                clearTimeout(timeout);
-                console.log("[token] SUCCESS! Extracted tokens from POST payload.");
-                resolve({ poToken, visitorData });
+                // Ensure it's the real, fully-generated token (starts with 'M' and is long)
+                if (poToken.startsWith("M") && poToken.length > 30) {
+                  clearTimeout(timeout);
+                  console.log("[token] SUCCESS! Extracted real BotGuard token from POST payload.");
+                  resolve({ poToken, visitorData });
+                } else {
+                  console.log(`[token] Ignored short/dummy token from POST: ${poToken}`);
+                }
               }
             }
           } catch (_) {}
