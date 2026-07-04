@@ -147,7 +147,15 @@ async function fetchYouTubeToken() {
           console.log("[token] Found play button! Clicking it to trigger token generation...");
           await page.click(".ytp-large-play-button");
         } catch (err) {
-          console.log("[token] Play button not found. Video might already be playing or blocked.");
+          console.log("[token] Play button not found. Dumping HTML to see what YouTube rendered:");
+          try {
+            const html = await page.evaluate(() => document.body.innerHTML.substring(0, 300).replace(/\n/g, ' '));
+            console.log(`[token] HTML Snippet: ${html}`);
+          } catch(e) {}
+          
+          console.log("[token] Attempting fallback: pressing Spacebar and clicking the screen...");
+          await page.keyboard.press('Space');
+          await page.mouse.click(200, 200);
         }
 
         const title = await page.title();
