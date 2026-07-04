@@ -98,6 +98,11 @@ async function fetchTokens() {
 
     console.log("[token] Navigating to YouTube Embed page (Bypassing 429 IP Block)...");
     
+    // Set a Referer header! Opening embeds directly without a referer often causes Error 153
+    await page.setExtraHTTPHeaders({
+      'Referer': 'https://www.google.com/'
+    });
+
     // We use the Embed URL for "Me at the zoo" (jNQXAC9IVRw) 
     // Embeds avoid the 429 CAPTCHA block applied to datacenter IPs!
     await page.goto("https://www.youtube.com/embed/jNQXAC9IVRw?autoplay=1", {
